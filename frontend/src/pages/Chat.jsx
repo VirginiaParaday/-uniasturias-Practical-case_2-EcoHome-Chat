@@ -36,6 +36,7 @@ export default function Chat() {
 
     // Actividad 1 / Entregable 2: recepcion de mensajes en tiempo real (broadcast).
     socket.on('new-message', (message) => {
+      console.log('[Chat] Recibido de', message.username, ':', message.text);
       setMessages((prev) => [...prev, message]);
     });
 
@@ -62,6 +63,7 @@ export default function Chat() {
     const trimmed = text.trim();
     if (!trimmed || !socketRef.current) return;
 
+    console.log('[Chat] Enviando:', trimmed);
     socketRef.current.emit('new-message', { text: trimmed }, (ack) => {
       if (!ack?.ok) {
         console.error('No se pudo enviar el mensaje:', ack?.error);

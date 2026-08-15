@@ -78,10 +78,12 @@ function registerChatSocket(io) {
 
         // Persistencia automatica ANTES de reenviar (Actividad 2, Entregable 3).
         const saved = await saveMessage({ userId, username, text });
+        console.log(`[Socket.IO] Mensaje recibido de ${username}: "${text}"`);
 
         // Broadcast a todos los clientes conectados, incluido el emisor,
         // para que todos rendericen el mismo estado desde la DB.
         io.emit('new-message', saved);
+        console.log(`[Socket.IO] Broadcast a ${connectedUsers.size} usuario(s) conectado(s)`);
 
         if (typeof ack === 'function') ack({ ok: true, message: saved });
       } catch (err) {
