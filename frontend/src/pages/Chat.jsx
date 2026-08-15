@@ -31,6 +31,7 @@ export default function Chat() {
 
     // Actividad 3 / Entregable 3: historial inicial (ultimos 10 mensajes).
     socket.on('message-history', (history) => {
+      console.log('[Chat] Sesión iniciada. Cantidad de mensajes del chat:', history.length);
       setMessages(history);
     });
 

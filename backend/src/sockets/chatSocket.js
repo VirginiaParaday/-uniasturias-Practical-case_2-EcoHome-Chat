@@ -1,6 +1,13 @@
 const jwt = require('jsonwebtoken');
 const jwtConfig = require('../config/jwt');
-const { saveMessage, getLastMessages } = require('../models/messageModel');
+const { saveMessage, getLastMessages, getAllMessagesCount } = require('../models/messageModel');
+
+// Al iniciar sesion (conectar al chat), muestra en consola cuantos mensajes hay.
+async function logChatMessageCount(username) {
+  const total = await getAllMessagesCount();
+  console.log(`[Socket.IO] ${username} inició sesión. Cantidad de mensajes del chat: ${total}`);
+  return total;
+}
 
 // Cuenta simple de usuarios conectados, util para logs y para un futuro
 // indicador de "usuarios en linea" (evolucion mencionada en el enunciado).
@@ -52,6 +59,7 @@ function registerChatSocket(io) {
     // ----------------------------------------------------------------
     try {
       const history = await getLastMessages(10);
+      await logChatMessageCount(username);
       socket.emit('message-history', history);
     } catch (err) {
       console.error('[Socket.IO] Error cargando historial:', err);
