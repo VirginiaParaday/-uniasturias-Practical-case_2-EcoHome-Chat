@@ -7,7 +7,7 @@ y Soporte de EcoHome Store, resolviendo el problema descrito en el enunciado: co
 dispersa en WhatsApp/Messenger/correo, sin trazabilidad ni historial centralizado.
 
 Stack: **Express.js + Socket.IO + PostgreSQL + JWT** (backend) y **React + Vite +
-socket.io-client** (frontend).
+socket.io-client** (frontend). Gestor de paquetes: **pnpm**.
 
 ---
 
@@ -36,6 +36,7 @@ ecohome-chat/
 │       ├── migrate.js
 │       └── seed.js              # crea usuarios de prueba
 ├── frontend/
+│   ├── pnpm-workspace.yaml      # aprueba el build script de esbuild (requerido por pnpm)
 │   └── src/
 │       ├── api.js               # cliente REST (axios + JWT)
 │       ├── socket.js            # cliente Socket.IO (envía token en el handshake)
@@ -44,6 +45,7 @@ ecohome-chat/
 │           ├── Login.jsx        # Actividad 3, Entregable 1
 │           └── Chat.jsx         # Actividad 3, Entregables 2 y 3
 ├── docker-compose.yml           # PostgreSQL listo para desarrollo
+├── backup_postgres.sql          # (opcional) dump de la base local, ver sección 7
 └── README.md
 ```
 
@@ -51,8 +53,13 @@ ecohome-chat/
 
 ## 2. Requisitos previos
 
-- Node.js 18 o superior
-- Docker (recomendado para PostgreSQL) o una instancia de PostgreSQL propia
+- **Node.js 18 o superior** (probado con Node 24)
+- **pnpm** — si no lo tienes instalado, actívalo con corepack (viene incluido con Node):
+  ```bash
+  corepack enable
+  corepack prepare pnpm@latest --activate
+  ```
+- **Docker Desktop** (recomendado para PostgreSQL) o una instancia de PostgreSQL propia
 
 ---
 
@@ -69,15 +76,21 @@ Esto crea una base `ecohome_chat` con usuario `ecohome` / password `ecohome123` 
 puerto `5432`. Si ya tienes PostgreSQL propio, omite este paso y ajusta las variables
 de entorno del backend.
 
+> **Nota (Windows):** si al migrar más adelante te sale `password authentication failed`
+> aunque las credenciales sean correctas, probablemente tengas otro PostgreSQL nativo
+> escuchando también en el puerto 5432 (revisa con `netstat -ano | findstr :5432`). La
+> solución más simple es cambiar el mapeo de puerto en `docker-compose.yml` a
+> `"5433:5432"` y actualizar `DB_PORT=5433` en `backend/.env`. Ver sección 6 para más detalle.
+
 ### 3.2 Backend
 
 ```bash
 cd backend
 cp .env.example .env      # ajusta valores si es necesario
-npm install
-npm run migrate            # crea las tablas users y messages
-npm run seed                # crea usuarios de prueba
-npm run dev                 # levanta el servidor en http://localhost:4000
+pnpm install
+pnpm run migrate            # crea las tablas users y messages
+pnpm run seed                # crea usuarios de prueba
+pnpm run dev                 # levanta el servidor en http://localhost:4000
 ```
 
 Usuarios de prueba creados por el seed:
@@ -96,8 +109,23 @@ En otra terminal:
 ```bash
 cd frontend
 cp .env.example .env
-npm install
-npm run dev                 # http://localhost:5173
+pnpm install
+```
+
+Si al instalar ves este aviso:
+```
+[ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: esbuild@0.21.5
+```
+es porque pnpm bloquea por seguridad los scripts `postinstall` hasta aprobarlos
+explícitamente. El repo ya trae `frontend/pnpm-workspace.yaml` con `esbuild`
+preaprobado, así que normalmente no debería salir; si de todas formas aparece, corre:
+```bash
+pnpm approve-builds esbuild
+```
+y confirma con `y`. Luego continúa:
+
+```bash
+pnpm run dev                 # http://localhost:5173
 ```
 
 ### 3.4 Probar el chat con 2 usuarios en paralelo
@@ -185,11 +213,68 @@ docker exec -it ecohome_chat_db psql -U ecohome -d ecohome_chat -c "SELECT id, u
 ## 6. Solución de problemas
 
 - **El frontend no conecta al socket / error de CORS**: revisa que `CORS_ORIGIN` en
-  `backend/.env` coincida con la URL del frontend (`http://localhost:5173` por defecto).
+  `backend/.env` (o en las variables del servicio, si está desplegado) coincida
+  exactamente con la URL del frontend (`http://localhost:5173` en local — protocolo,
+  dominio y sin `/` al final).
 - **`ECONNREFUSED` en el backend al iniciar**: PostgreSQL no está arriba o las
   credenciales en `.env` no coinciden con `docker-compose.yml`.
-- **Login devuelve 401**: confirma que corriste `npm run seed` y que usas exactamente
+- **`password authentication failed for user "ecohome"`** aunque las credenciales del
+  `.env` sean correctas: en Windows es común tener otro PostgreSQL (nativo, o de otro
+  proyecto) escuchando también en el puerto 5432. Confírmalo con:
+  ```powershell
+  netstat -ano | findstr :5432
+  ```
+  Si ves más de un PID, cambia el mapeo en `docker-compose.yml` a `"5433:5432"`,
+  actualiza `DB_PORT=5433` en `backend/.env`, y recrea el contenedor:
+  ```powershell
+  docker compose down -v
+  docker compose up -d
+  ```
+- **Login devuelve 401**: confirma que corriste `pnpm run seed` y que usas exactamente
   las credenciales de la tabla de la sección 3.2.
 - **El socket se desconecta inmediatamente**: revisa que el token no haya expirado
   (`JWT_EXPIRES_IN` en `.env`, por defecto 8h) y que se esté enviando en
   `auth: { token }` desde el cliente.
+- **`ERR_PNPM_IGNORED_BUILDS` (esbuild) al instalar el frontend**: corre
+  `pnpm approve-builds esbuild` y confirma con `y`; commitea el archivo que pnpm
+  modifique (`pnpm-workspace.yaml`).
+- **`Cannot find module 'pg-types'` (o cualquier módulo "perdido") al correr un script**:
+  el `node_modules` quedó corrupto o a medias (pasa tras interrupciones, o al recrear
+  el contenedor de Docker). Solución:
+  ```powershell
+  Remove-Item -Recurse -Force node_modules
+  pnpm install
+  ```
+
+---
+
+## 7. Respaldo de la base de datos local (opcional)
+
+Si quieres archivar el proyecto completo (por ejemplo en un `.zip`/`.rar`) conservando
+los datos actuales de tu PostgreSQL local, expórtalos a un dump SQL **dentro** de la
+carpeta del proyecto antes de comprimir:
+
+```bash
+docker exec ecohome_chat_db pg_dump -U ecohome -d ecohome_chat > backup_postgres.sql
+```
+
+Para restaurarlo más adelante (después de `docker compose up -d` en una máquina nueva):
+
+```bash
+# Windows (PowerShell)
+Get-Content backup_postgres.sql | docker exec -i ecohome_chat_db psql -U ecohome -d ecohome_chat
+
+# macOS / Linux
+cat backup_postgres.sql | docker exec -i ecohome_chat_db psql -U ecohome -d ecohome_chat
+```
+
+Antes de comprimir, borra las carpetas pesadas y regenerables (no hace falta
+archivarlas, `pnpm install` las reconstruye en segundos):
+
+```bash
+# Windows (PowerShell)
+Remove-Item -Recurse -Force backend\node_modules, frontend\node_modules, frontend\dist -ErrorAction SilentlyContinue
+
+# macOS / Linux
+rm -rf backend/node_modules frontend/node_modules frontend/dist
+```
