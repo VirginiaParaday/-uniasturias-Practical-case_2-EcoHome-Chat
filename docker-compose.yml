@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ecohome
       POSTGRES_PASSWORD: ecohome123
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - ecohome_chat_data:/var/lib/postgresql/data
     healthcheck:
