@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ecohome_chat_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ecohome_chat
+      POSTGRES_USER: ecohome
+      POSTGRES_PASSWORD: ecohome123
+    ports:
+      - "5432:5432"
+    volumes:
+      - ecohome_chat_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecohome -d ecohome_chat"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  ecohome_chat_data:
