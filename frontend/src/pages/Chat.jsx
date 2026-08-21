@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { connectSocket, disconnectSocket } from '../socket';
+import { getRecentMessages } from '../api';
+import { connectSocket } from '../socket';
 
 function formatTime(iso) {
   try {
@@ -11,7 +12,7 @@ function formatTime(iso) {
 }
 
 export default function Chat() {
-  const { token, user, logout } = useAuth();
+  const { token, user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [connectionStatus, setConnectionStatus] = useState('conectando...');
@@ -20,6 +21,10 @@ export default function Chat() {
   const socketRef = useRef(null);
 
   useEffect(() => {
+    getRecentMessages()
+      .then((history) => setMessages(history))
+      .catch(() => {});
+
     const socket = connectSocket(token);
     socketRef.current = socket;
 
@@ -38,7 +43,7 @@ export default function Chat() {
     // Actividad 1 / Entregable 2: recepcion de mensajes en tiempo real (broadcast).
     socket.on('new-message', (message) => {
       console.log('[Chat] Recibido de', message.username, ':', message.text);
-      setMessages((prev) => [...prev, message]);
+      setMessages((prev) => (prev.some((item) => item.id === message.id) ? prev : [...prev, message]));
     });
 
     socket.on('user-status', ({ username, status }) => {
@@ -50,7 +55,13 @@ export default function Chat() {
     });
 
     return () => {
-      disconnectSocket();
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('connect_error');
+      socket.off('message-history');
+      socket.off('new-message');
+      socket.off('user-status');
+      socket.off('chat-error');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
@@ -76,20 +87,12 @@ export default function Chat() {
 
   return (
     <div className="chat-page">
-      <header className="chat-header">
-        <div>
-          <h2>EcoHome Store · Chat interno</h2>
-          <span className={`status-pill status-${connectionStatus === 'conectado' ? 'ok' : 'warn'}`}>
-            {connectionStatus}
-          </span>
-        </div>
-        <div className="chat-user">
-          <span>
-            {user?.username} <em>({user?.role})</em>
-          </span>
-          <button onClick={logout} className="logout-btn">Cerrar sesión</button>
-        </div>
-      </header>
+      <div className="chat-status-bar">
+        <span>Chat interno</span>
+        <span className={`status-pill status-${connectionStatus === 'conectado' ? 'ok' : 'warn'}`}>
+          {connectionStatus}
+        </span>
+      </div>
 
       <main className="chat-messages">
         {messages.length === 0 && (

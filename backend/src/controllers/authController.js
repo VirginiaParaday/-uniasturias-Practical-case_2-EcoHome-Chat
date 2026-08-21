@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const jwtConfig = require('../config/jwt');
 const { findByUsername, createUser } = require('../models/userModel');
+const { countProductsByUser } = require('../models/productModel');
 
 function signToken(user) {
   return jwt.sign(
@@ -58,10 +59,17 @@ async function login(req, res) {
     }
 
     const token = signToken(user);
+    const productsCount = await countProductsByUser(user.id);
 
     return res.json({
       token,
-      user: { id: user.id, username: user.username, email: user.email, role: user.role },
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        productsCount,
+      },
     });
   } catch (err) {
     console.error('[authController.login]', err);
@@ -69,9 +77,18 @@ async function login(req, res) {
   }
 }
 
-// GET /api/auth/me  (requiere JWT) - util para validar el token desde el frontend
-function me(req, res) {
-  return res.json({ user: req.user });
+// GET /api/auth/me  (requiere JWT) - valida el token y devuelve el contador de productos.
+async function me(req, res) {
+  try {
+    const productsCount = await countProductsByUser(req.user.id);
+    return res.json({
+      user: { ...req.user, productsCount },
+      stats: { productsCount },
+    });
+  } catch (err) {
+    console.error('[authController.me]', err);
+    return res.status(500).json({ message: 'Error obteniendo el perfil' });
+  }
 }
 
 module.exports = { register, login, me, signToken };

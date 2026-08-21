@@ -19,7 +19,7 @@ export default function Login({ onSuccess }) {
     <div className="auth-page">
       <div className="auth-card">
         <h1>EcoHome Store</h1>
-        <p className="subtitle">Chat interno corporativo</p>
+        <p className="subtitle">Catálogo y chat interno · JWT unificado</p>
 
         <form onSubmit={handleSubmit} className="auth-form">
           <label>
@@ -55,6 +55,7 @@ export default function Login({ onSuccess }) {
         <div className="hint-box">
           <strong>Usuarios de prueba (tras ejecutar el seed):</strong>
           <ul>
+            <li>arturo / Arturo123! <em>(14 productos de demo)</em></li>
             <li>ventas1 / Ventas123!</li>
             <li>logistica1 / Logistica123!</li>
             <li>soporte1 / Soporte123!</li>

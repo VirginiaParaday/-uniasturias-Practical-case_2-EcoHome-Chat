@@ -12,20 +12,33 @@ export function AuthProvider({ children }) {
   });
   const [error, setError] = useState('');
 
+  const persistUser = useCallback((nextUser) => {
+    localStorage.setItem('ecohome_user', JSON.stringify(nextUser));
+    setUser(nextUser);
+  }, []);
+
   const login = useCallback(async (username, password) => {
     setError('');
     try {
       const data = await loginRequest(username, password);
       localStorage.setItem('ecohome_token', data.token);
-      localStorage.setItem('ecohome_user', JSON.stringify(data.user));
+      persistUser(data.user);
       setToken(data.token);
-      setUser(data.user);
       return true;
     } catch (err) {
       const message = err?.response?.data?.message || 'No se pudo iniciar sesion';
       setError(message);
       return false;
     }
+  }, [persistUser]);
+
+  const setProductsCount = useCallback((productsCount) => {
+    setUser((current) => {
+      if (!current) return current;
+      const next = { ...current, productsCount };
+      localStorage.setItem('ecohome_user', JSON.stringify(next));
+      return next;
+    });
   }, []);
 
   const logout = useCallback(() => {
@@ -37,7 +50,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ token, user, error, login, logout }}>
+    <AuthContext.Provider value={{ token, user, error, login, logout, setProductsCount }}>
       {children}
     </AuthContext.Provider>
   );

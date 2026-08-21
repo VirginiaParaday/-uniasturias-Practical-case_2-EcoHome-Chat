@@ -1,13 +1,12 @@
-# EcoHome Store — Chat Interno Corporativo
+# EcoHome Store — Chat interno + catálogo (Unidades 2 y 3)
 
-Proyecto entregable del **Caso Práctico Unidad 2** (Asturias Corporación Universitaria).
+Proyecto entregable de **Asturias Corporación Universitaria**.
 
-Implementa un módulo de chat interno en tiempo real para los equipos de Ventas, Logística
-y Soporte de EcoHome Store, resolviendo el problema descrito en el enunciado: comunicación
-dispersa en WhatsApp/Messenger/correo, sin trazabilidad ni historial centralizado.
+- **Unidad 2:** chat interno en tiempo real (Express + Socket.IO + PostgreSQL + JWT + React).
+- **Unidad 3:** el mismo backend se consume desde **React y Flutter**; catálogo con
+  trazabilidad (`products.created_by`) y métrica `Usuario (N)`.
 
-Stack: **Express.js + Socket.IO + PostgreSQL + JWT** (backend) y **React + Vite +
-socket.io-client** (frontend). Gestor de paquetes: **pnpm**.
+Gestor de paquetes: **pnpm**.
 
 ---
 
@@ -22,29 +21,37 @@ ecohome-chat/
 │   │   ├── config/jwt.js
 │   │   ├── models/
 │   │   │   ├── userModel.js
-│   │   │   └── messageModel.js  # saveMessage / getLastMessages (Actividad 2 y 3)
+│   │   │   ├── messageModel.js  # saveMessage / getLastMessages (Actividad 2 y 3)
+│   │   │   └── productModel.js  # catálogo + created_by (Unidad 3)
 │   │   ├── controllers/authController.js
 │   │   ├── middleware/authMiddleware.js  # JWT para rutas REST
 │   │   ├── routes/
 │   │   │   ├── authRoutes.js    # /api/auth/login, /register, /me
-│   │   │   └── messageRoutes.js # /api/messages/recent, /verify
+│   │   │   ├── messageRoutes.js # /api/messages/recent, /verify
+│   │   │   ├── productRoutes.js # GET/POST /api/products
+│   │   │   └── userRoutes.js    # GET /api/users/me/stats
 │   │   └── sockets/chatSocket.js # io.use() JWT handshake + new-message (Actividad 1 y 2)
 │   ├── migrations/
 │   │   ├── 001_create_users.sql
-│   │   └── 002_create_messages.sql
+│   │   ├── 002_create_messages.sql
+│   │   └── 003_create_products.sql
 │   └── scripts/
 │       ├── migrate.js
-│       └── seed.js              # crea usuarios de prueba
+│       └── seed.js              # usuarios de prueba + 14 productos de arturo
 ├── frontend/
-│   ├── pnpm-workspace.yaml      # aprueba el build script de esbuild (requerido por pnpm)
+│   ├── pnpm-workspace.yaml
 │   └── src/
-│       ├── api.js               # cliente REST (axios + JWT)
-│       ├── socket.js            # cliente Socket.IO (envía token en el handshake)
+│       ├── api.js
+│       ├── socket.js
 │       ├── context/AuthContext.jsx
 │       └── pages/
-│           ├── Login.jsx        # Actividad 3, Entregable 1
-│           └── Chat.jsx         # Actividad 3, Entregables 2 y 3
-├── docker-compose.yml           # PostgreSQL listo para desarrollo
+│           ├── Login.jsx
+│           ├── Catalog.jsx      # Unidad 3: creador + badge Usuario (N)
+│           └── Chat.jsx
+├── mobile/                      # Cliente Flutter (Unidad 3 / Actividad 1)
+│   ├── lib/
+│   └── README.md
+├── docker-compose.yml
 ├── backup_postgres.sql          # (opcional) dump de la base local, ver sección 7
 └── README.md
 ```
@@ -88,8 +95,8 @@ de entorno del backend.
 cd backend
 cp .env.example .env      # ajusta valores si es necesario
 pnpm install
-pnpm run migrate            # crea las tablas users y messages
-pnpm run seed                # crea usuarios de prueba
+pnpm run migrate            # crea users, messages y products
+pnpm run seed                # usuarios de prueba + catálogo de arturo
 pnpm run dev                 # levanta el servidor en http://localhost:4000
 ```
 
@@ -97,6 +104,7 @@ Usuarios de prueba creados por el seed:
 
 | usuario      | password        | rol        |
 |--------------|------------------|------------|
+| arturo       | Arturo123!       | ventas     |
 | admin        | Admin123!        | admin      |
 | ventas1      | Ventas123!       | ventas     |
 | logistica1   | Logistica123!    | logistica  |
@@ -278,3 +286,78 @@ Remove-Item -Recurse -Force backend\node_modules, frontend\node_modules, fronten
 # macOS / Linux
 rm -rf backend/node_modules frontend/node_modules frontend/dist
 ```
+
+---
+
+## 8. Unidad 3 — mismo backend, React + Flutter, trazabilidad
+
+Requisito del enunciado: **no hay APIs paralelas**. Flutter llama a los mismos
+endpoints que React. El creador de un producto **nunca** viaja en el body: se toma
+del JWT (`req.user.id`).
+
+### 8.1 Arranque extra (además de la sección 3)
+
+Si el backend ya estaba corriendo, hay que **migrar y sembrar de nuevo** (tabla `products`
++ usuario `arturo` con 14 productos):
+
+```powershell
+cd backend
+pnpm run migrate
+pnpm run seed
+pnpm run dev
+```
+
+React no cambia de puerto (`http://localhost:5173`). Tras login verás **Catálogo** y **Chat**.
+El badge del header es `arturo (14)`. Crea un producto y pasa a `arturo (15)`.
+
+Flutter: ver `mobile/README.md`. Flujo de evidencia:
+`login → catálogo → chat → mensaje visible también en React`.
+
+### 8.2 Contratos REST usados por ambos clientes
+
+| Método | Ruta | Auth | Uso |
+|---|---|---|---|
+| POST | `/api/auth/login` | no | JWT unificado |
+| GET | `/api/auth/me` | Bearer | perfil + `productsCount` |
+| GET | `/api/users/me/stats` | Bearer | `{ username, productsCount }` |
+| GET | `/api/products` | Bearer | catálogo con `creator.username` |
+| POST | `/api/products` | Bearer | crea; `created_by` sale del token |
+| Socket.IO | `auth.token` + `new-message` | JWT handshake | mismo chat |
+
+Ejemplo Postman/cURL (Actividad 2):
+
+```powershell
+# Login
+curl -s -X POST http://localhost:4000/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"arturo\",\"password\":\"Arturo123!\"}"
+
+# Crear (pega el token; NO envíes created_by)
+curl -s -X POST http://localhost:4000/api/products -H "Authorization: Bearer TOKEN" -H "Content-Type: application/json" -d "{\"name\":\"Maceta de barro\",\"price\":25000}"
+
+# Listar (el JSON incluye creator.username)
+curl -s http://localhost:4000/api/products -H "Authorization: Bearer TOKEN"
+
+# Contador
+curl -s http://localhost:4000/api/users/me/stats -H "Authorization: Bearer TOKEN"
+```
+
+SQL de auditoría:
+
+```powershell
+docker exec -it ecohome_chat_db psql -U ecohome -d ecohome_chat -c "SELECT p.id, p.name, u.username FROM products p JOIN users u ON u.id = p.created_by ORDER BY p.id;"
+```
+
+### 8.3 Texto para el informe (copiar y ajustar)
+
+**Actividad 1.** La app Flutter reutiliza el backend existente. El login llama a
+`POST /api/auth/login` y guarda el JWT. El catálogo usa `GET /api/products` con
+`Authorization: Bearer`. El chat usa Socket.IO con `auth: { token }`, los mismos
+eventos que React (`message-history`, `new-message`). No se crearon rutas `/mobile`.
+
+**Actividad 2.** Se añadió `products.created_by` (FK a `users.id`). En
+`POST /api/products` el creador se toma de `req.user.id` (JWT). Las consultas
+devuelven `creator.username`. Un cliente no puede atribuir un producto a otro usuario.
+
+**Actividad 3.** React y Flutter muestran el creador en cada producto y el badge
+`username (N)` con `productsCount` de `/api/auth/me` o `/api/users/me/stats`.
+Tras un alta, la respuesta incluye el nuevo contador y se emite `product-created`
+por Socket.IO para actualizar la UI al instante (p. ej. `arturo (14)` → `arturo (15)`).

@@ -18,6 +18,26 @@ export async function loginRequest(username, password) {
   return data; // { token, user }
 }
 
+export async function getMe() {
+  const { data } = await api.get('/auth/me');
+  return data;
+}
+
+export async function getMyStats() {
+  const { data } = await api.get('/users/me/stats');
+  return data; // { username, productsCount }
+}
+
+export async function getProducts() {
+  const { data } = await api.get('/products');
+  return data.products;
+}
+
+export async function createProduct({ name, description, price }) {
+  const { data } = await api.post('/products', { name, description, price });
+  return data; // { product, productsCount }
+}
+
 export async function getRecentMessages() {
   const { data } = await api.get('/messages/recent');
   return data.messages;
