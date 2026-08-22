@@ -67,6 +67,7 @@ ecohome-chat/
   corepack prepare pnpm@latest --activate
   ```
 - **Docker Desktop** (recomendado para PostgreSQL) o una instancia de PostgreSQL propia
+- **Flutter SDK** (solo para el cliente móvil de la Unidad 3) — [instalación en Windows](https://docs.flutter.dev/get-started/install/windows). Comprueba con `flutter doctor`. No hace falta Android Studio si corres la app en **Windows desktop** o Chrome.
 
 ---
 
@@ -80,8 +81,8 @@ docker compose up -d
 ```
 
 Esto crea una base `ecohome_chat` con usuario `ecohome` / password `ecohome123` en el
-puerto `5432`. Si ya tienes PostgreSQL propio, omite este paso y ajusta las variables
-de entorno del backend.
+puerto **5433** del host (`5433:5432` en `docker-compose.yml`). Si ya tienes PostgreSQL
+propio, omite este paso y ajusta las variables de entorno del backend.
 
 > **Nota (Windows):** si al migrar más adelante te sale `password authentication failed`
 > aunque las credenciales sean correctas, probablemente tengas otro PostgreSQL nativo
@@ -136,7 +137,64 @@ y confirma con `y`. Luego continúa:
 pnpm run dev                 # http://localhost:5173
 ```
 
-### 3.4 Probar el chat con 2 usuarios en paralelo
+### 3.4 Cliente Flutter (`mobile/`)
+
+El backend (sección 3.2) tiene que estar corriendo en `http://localhost:4000`.
+Flutter **no reemplaza** a React: es un segundo cliente del mismo API.
+
+**Importante:** los comandos de abajo se ejecutan **dentro de `mobile/`**, no en la
+raíz del repo. Si corres `flutter create .` en `ecohome-chat\`, ensucias el proyecto
+con `android/`, `ios/`, `windows/`, etc.
+
+En Windows, la primera vez que uses plugins nativos (`http`, `shared_preferences`,
+`socket_io_client`) hay que activar **Developer Mode**:
+
+```powershell
+start ms-settings:developers
+```
+
+Activa *Developer Mode*, cierra la terminal y abre otra.
+
+```powershell
+cd mobile
+flutter pub get
+flutter run -d windows
+```
+
+La primera compilación tarda unos minutos. Se abre una ventana de escritorio.
+Login de prueba: `arturo` / `Arturo123!`.
+
+Si `flutter devices` no lista Windows, o es la primera vez en esta carpeta y
+faltan las carpetas de plataforma:
+
+```powershell
+cd mobile
+flutter create . --project-name ecohome_mobile --org com.ecohome
+flutter pub get
+flutter run -d windows
+```
+
+Otras variantes (opcionales):
+
+```powershell
+flutter run -d chrome          # web; puede chocar con CORS
+flutter run                    # elige dispositivo; Android pide Android SDK
+```
+
+- **Emulador Android:** la app ya usa `http://10.0.2.2:4000`. En
+  `mobile/android/app/src/main/AndroidManifest.xml` debe estar
+  `android:usesCleartextTraffic="true"` (HTTP local).
+- **Móvil físico en la misma Wi‑Fi:**
+
+```powershell
+flutter run --dart-define=API_URL=http://192.168.1.10:4000
+```
+
+(sustituye por la IP de tu PC).
+
+Más detalle: `mobile/README.md`.
+
+### 3.5 Probar el chat con 2 usuarios en paralelo
 
 1. Abre `http://localhost:5173` en dos navegadores/pestañas distintas (o una en
    incógnito).
@@ -158,7 +216,7 @@ pnpm run dev                 # http://localhost:5173
 | Logs de conexión/desconexión | `backend/src/sockets/chatSocket.js` → `console.log` en `connection` y `disconnect` |
 | Recepción de `new-message` | `socket.on('new-message', ...)` en `chatSocket.js` |
 | Broadcast con `io.emit(...)` | Misma función, tras persistir el mensaje: `io.emit('new-message', saved)` |
-| Prueba funcional (2 navegadores) | Sigue la guía de la sección 3.4; toma capturas o graba un video corto mostrando el mensaje llegando a ambas pestañas |
+| Prueba funcional (2 navegadores) | Sigue la guía de la sección 3.5; toma capturas o graba un video corto mostrando el mensaje llegando a ambas pestañas |
 
 ### Actividad 2 — Seguridad y persistencia: JWT + base de datos de mensajes
 
@@ -193,7 +251,7 @@ docker exec -it ecohome_chat_db psql -U ecohome -d ecohome_chat -c "SELECT id, u
 | Conexión a Socket.IO enviando el token | `frontend/src/socket.js` → `io(SOCKET_URL, { auth: { token } })` |
 | Carga de historial (últimos 10) | Backend emite `message-history` al conectar (`chatSocket.js`); frontend lo escucha en `Chat.jsx` (`socket.on('message-history', ...)`) |
 | Envío/recepción en tiempo real | `socket.emit('new-message', { text })` al enviar; `socket.on('new-message', ...)` actualiza el listado para todos los clientes conectados |
-| Evidencia (2 usuarios en paralelo) | Repite la prueba de la sección 3.4 con 2 usuarios distintos y documenta con capturas/video: carga del historial + mensajes en vivo |
+| Evidencia (2 usuarios en paralelo) | Repite la prueba de la sección 3.5 con 2 usuarios distintos y documenta con capturas/video: carga del historial + mensajes en vivo |
 
 ---
 
@@ -310,8 +368,8 @@ pnpm run dev
 React no cambia de puerto (`http://localhost:5173`). Tras login verás **Catálogo** y **Chat**.
 El badge del header es `arturo (14)`. Crea un producto y pasa a `arturo (15)`.
 
-Flutter: ver `mobile/README.md`. Flujo de evidencia:
-`login → catálogo → chat → mensaje visible también en React`.
+Para Flutter sigue la **sección 3.4** (desde `mobile/`, `flutter run -d windows`).
+Flujo de evidencia: `login → catálogo → chat → mensaje visible también en React`.
 
 ### 8.2 Contratos REST usados por ambos clientes
 

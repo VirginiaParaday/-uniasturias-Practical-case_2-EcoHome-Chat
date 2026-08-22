@@ -3,53 +3,60 @@
 Misma API que React: `POST /api/auth/login`, `GET/POST /api/products`,
 `GET /api/users/me/stats` y Socket.IO con JWT en el handshake.
 
-Flutter **no está incluido** en este repo (el SDK no venía instalado en el PC).
-Hay que generar las carpetas de plataforma una sola vez.
+La guía corta de arranque (junto a Docker, backend y frontend) está en el
+**README de la raíz, sección 3.4**. Aquí va el detalle.
 
-## 1. Instalar Flutter
+## 1. Requisitos
 
-https://docs.flutter.dev/get-started/install/windows
+- Flutter SDK: https://docs.flutter.dev/get-started/install/windows
+- Backend en marcha (`pnpm run dev` en `backend`, `http://localhost:4000`)
+- En Windows, **Developer Mode** (symlinks de plugins):
 
-Comprueba:
+```powershell
+start ms-settings:developers
+```
+
+Comprueba el SDK:
 
 ```powershell
 flutter doctor
 ```
 
-## 2. Generar Android/iOS/Windows y correr
+No hace falta Android Studio si usas **Windows desktop** (`-d windows`).
 
-Desde la carpeta `mobile`:
+## 2. Correr (desde `mobile/`, nunca desde la raíz del repo)
 
 ```powershell
 cd E:\Windows\Programming\Training\ecohome-chat\mobile
+flutter pub get
+flutter run -d windows
+```
+
+Si faltan las carpetas `android/`, `ios/`, `windows/`:
+
+```powershell
 flutter create . --project-name ecohome_mobile --org com.ecohome
 flutter pub get
+flutter run -d windows
 ```
 
-HTTP en claro (el backend local es `http://`, no `https://`):
+Login: `arturo` / `Arturo123!`
 
-- Android: en `android/app/src/main/AndroidManifest.xml`, dentro de `<application>` añade
-  `android:usesCleartextTraffic="true"`.
-- iOS: en `ios/Runner/Info.plist` permite HTTP local (`NSAllowsArbitraryLoads` o excepción a localhost).
-
-El backend debe estar en marcha (`pnpm run dev` en `backend`).
+### Otros destinos
 
 ```powershell
-flutter run
-```
-
-- **Emulador Android:** ya usa `http://10.0.2.2:4000` (localhost de Windows).
-- **Móvil físico:** pasa la IP de tu PC:
-
-```powershell
+flutter run -d chrome
 flutter run --dart-define=API_URL=http://192.168.1.10:4000
 ```
+
+- **Emulador Android:** `http://10.0.2.2:4000`. En
+  `android/app/src/main/AndroidManifest.xml` debe estar
+  `android:usesCleartextTraffic="true"`.
+- **Windows / iOS simulador / web:** `http://localhost:4000`.
 
 ## 3. Flujo de evidencia
 
 1. Login con `arturo` / `Arturo123!`
-2. Catálogo: se listan los 14 productos seed y el AppBar muestra `arturo (14)`
+2. Catálogo: productos seed y AppBar `arturo (14)` (o el N actual)
 3. Crear un producto → el badge pasa a `arturo (15)`
-4. Pestaña Chat: enviar un mensaje y verlo también en React (`http://localhost:5173`)
-
-Usuarios de prueba: los mismos del seed del backend (`arturo`, `ventas1`, `admin`, ...).
+4. Pestaña Chat: el mensaje también aparece en React (`http://localhost:5173`)
