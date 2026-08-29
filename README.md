@@ -8,29 +8,127 @@ y app Flutter. Gestor de paquetes: **pnpm**.
 
 ## Entrega 1.2 — paquete del proyecto
 
-Carpetas del enunciado y equivalencia en este repo:
+Todo lo que pide el enunciado (instalación, `.env`, cómo correr, credenciales,
+rutas y eventos socket) está en este bloque. El detalle largo sigue en las
+secciones 2–9.
+
+### Carpetas
 
 | Enunciado | Carpeta | Contenido |
 |---|---|---|
-| `/backend` | `backend/` | Express, JWT, Socket.IO, migraciones que ejecuta `pnpm run migrate` |
+| `/backend` | `backend/` | Express, JWT, Socket.IO; `pnpm run migrate` lee `backend/migrations/` |
 | `/web-react` | `frontend/` | React + Vite (login, signup, catálogo CRUD, chat) |
 | `/mobile-flutter` | `mobile/` | Flutter (login, signup, catálogo, chat) |
-| `/db` | `db/` | Scripts SQL (`users`, `messages`, `products`) |
+| `/db` | `db/` | Copia de los scripts SQL (`users`, `messages`, `products`) |
 
-**Instalación (orden):** requisitos (§2) → Docker (§3.1) → backend (§3.2) → web (§3.3) → móvil (§3.4).
+### Instalación (orden)
 
-**Variables de entorno:** tabla de la [sección 9](#9-proyecto-de-aplicación--paquete-de-entrega). Copiar `backend/.env.example` → `backend/.env` y `frontend/.env.example` → `frontend/.env`.
+Requisitos: Node 18+, pnpm (`corepack enable`), Docker Desktop, Flutter SDK
+(solo para móvil). Detalle en la sección 2.
 
-**Cómo correr:** backend `http://localhost:4000` · web `http://localhost:5173` · móvil `flutter run -d windows`.
+```powershell
+# 1) PostgreSQL
+cd E:\Windows\Programming\Training\ecohome-chat
+docker compose up -d
 
-**Credenciales de prueba (admin / cliente):**
+# 2) Backend
+cd backend
+Copy-Item .env.example .env
+pnpm install
+pnpm run migrate
+pnpm run seed
+pnpm run dev
+# http://localhost:4000
+
+# 3) Web (otra terminal)  →  /web-react
+cd frontend
+Copy-Item .env.example .env
+pnpm install
+pnpm run dev
+# http://localhost:5173
+
+# 4) Móvil (otra terminal)  →  /mobile-flutter
+cd mobile
+flutter pub get
+flutter run -d windows
+```
+
+### Variables de entorno
+
+Plantillas: `backend/.env.example` y `frontend/.env.example`.
+
+**Backend (`backend/.env`)**
+
+| Variable | Ejemplo | Uso |
+|---|---|---|
+| `PORT` | `4000` | HTTP + Socket.IO |
+| `DB_HOST` | `localhost` | PostgreSQL |
+| `DB_PORT` | `5433` | puerto del host (Docker mapea `5433:5432`) |
+| `DB_NAME` | `ecohome_chat` | base |
+| `DB_USER` | `ecohome` | usuario |
+| `DB_PASSWORD` | `ecohome123` | clave |
+| `JWT_SECRET` | (cambiar en producción) | firma del token |
+| `JWT_EXPIRES_IN` | `8h` | vigencia |
+| `CORS_ORIGIN` | `http://localhost:5173` | origen de React |
+
+**Frontend (`frontend/.env`)**
+
+| Variable | Ejemplo | Uso |
+|---|---|---|
+| `VITE_API_URL` | `http://localhost:4000/api` | REST |
+| `VITE_SOCKET_URL` | `http://localhost:4000` | chat Socket.IO |
+
+Flutter no usa `.env`. Windows/desktop: `http://localhost:4000`. Emulador Android:
+`http://10.0.2.2:4000`. Celular físico: `flutter run --dart-define=API_URL=http://IP:4000`.
+
+### Credenciales de prueba (admin / cliente)
+
+Las crea `pnpm run seed`:
 
 | usuario | password | rol |
 |---|---|---|
 | admin | Admin123! | admin |
 | cliente | Cliente123! | cliente |
 
-**Rutas REST y eventos Socket.IO:** [sección 8.2](#82-contratos-rest-y-eventos-socket).
+También: `arturo` / `Arturo123!` (catálogo seed y métrica `Usuario (N)`).
+
+### Rutas REST (mismo contrato web y móvil)
+
+Base: `http://localhost:4000`
+
+| Método | Ruta | Auth | Uso |
+|---|---|---|---|
+| GET | `/api/health` | no | estado del servicio |
+| POST | `/api/auth/signup` | no | registro (rol `cliente`) + JWT |
+| POST | `/api/auth/register` | no | alias de signup |
+| POST | `/api/auth/login` | no | JWT unificado |
+| GET | `/api/auth/me` | Bearer | perfil + `productsCount` |
+| GET | `/api/users/me` | Bearer | `{ username, productsCount }` |
+| GET | `/api/users/me/stats` | Bearer | igual que `/users/me` |
+| GET | `/api/products` | Bearer | catálogo con `creator.username` |
+| GET | `/api/products/:id` | Bearer | un producto |
+| POST | `/api/products` | Bearer | crea; `created_by` sale del JWT |
+| PUT | `/api/products/:id` | Bearer | edita (autor o admin) |
+| DELETE | `/api/products/:id` | Bearer | borra (autor o admin) |
+| GET | `/api/messages/recent` | Bearer | últimos 10 |
+| GET | `/api/messages/verify` | Bearer | total persistido |
+
+### Eventos Socket.IO
+
+Mismo host (`http://localhost:4000`). Handshake: `auth: { token }`.
+
+| Dirección | Evento | Payload | Uso |
+|---|---|---|---|
+| handshake | `auth.token` | JWT | si falla, no entra al chat |
+| servidor → cliente | `messages` | array (últimos 10) | historial al conectar (enunciado) |
+| servidor → cliente | `message-history` | array (últimos 10) | mismo historial |
+| cliente → servidor | `new-message` | `{ text }` | envío; se persiste y se reenvía |
+| servidor → todos | `new-message` | mensaje guardado | tiempo real |
+| servidor → cliente | `chat-error` | `{ message }` | error de historial o envío |
+| servidor → otros | `user-status` | `{ username, status }` | online / offline |
+| servidor → todos | `product-created` | `{ product, userId, productsCount }` | badge `Usuario (N)` |
+| servidor → todos | `product-updated` | `{ product }` | catálogo en vivo |
+| servidor → todos | `product-deleted` | `{ id, userId, productsCount }` | catálogo y contador |
 
 ---
 
