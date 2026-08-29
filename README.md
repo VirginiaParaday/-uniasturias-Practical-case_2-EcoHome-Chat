@@ -1,12 +1,36 @@
-# EcoHome Store — Chat interno + catálogo (Unidades 2 y 3)
+# EcoHome Store — Proyecto de aplicación
 
-Proyecto entregable de **Asturias Corporación Universitaria**.
+Prototipo demo/beta de **Asturias Corporación Universitaria** (Unidades 2 y 3 +
+entrega final): un solo backend Express + PostgreSQL + JWT + Socket.IO, web React
+y app Flutter. Gestor de paquetes: **pnpm**.
 
-- **Unidad 2:** chat interno en tiempo real (Express + Socket.IO + PostgreSQL + JWT + React).
-- **Unidad 3:** el mismo backend se consume desde **React y Flutter**; catálogo con
-  trazabilidad (`products.created_by`) y métrica `Usuario (N)`.
+---
 
-Gestor de paquetes: **pnpm**.
+## Entrega 1.2 — paquete del proyecto
+
+Carpetas del enunciado y equivalencia en este repo:
+
+| Enunciado | Carpeta | Contenido |
+|---|---|---|
+| `/backend` | `backend/` | Express, JWT, Socket.IO, migraciones que ejecuta `pnpm run migrate` |
+| `/web-react` | `frontend/` | React + Vite (login, signup, catálogo CRUD, chat) |
+| `/mobile-flutter` | `mobile/` | Flutter (login, signup, catálogo, chat) |
+| `/db` | `db/` | Scripts SQL (`users`, `messages`, `products`) |
+
+**Instalación (orden):** requisitos (§2) → Docker (§3.1) → backend (§3.2) → web (§3.3) → móvil (§3.4).
+
+**Variables de entorno:** tabla de la [sección 9](#9-proyecto-de-aplicación--paquete-de-entrega). Copiar `backend/.env.example` → `backend/.env` y `frontend/.env.example` → `frontend/.env`.
+
+**Cómo correr:** backend `http://localhost:4000` · web `http://localhost:5173` · móvil `flutter run -d windows`.
+
+**Credenciales de prueba (admin / cliente):**
+
+| usuario | password | rol |
+|---|---|---|
+| admin | Admin123! | admin |
+| cliente | Cliente123! | cliente |
+
+**Rutas REST y eventos Socket.IO:** [sección 8.2](#82-contratos-rest-y-eventos-socket).
 
 ---
 
@@ -14,47 +38,32 @@ Gestor de paquetes: **pnpm**.
 
 ```
 ecohome-chat/
-├── backend/
+├── backend/                     # /backend
 │   ├── src/
-│   │   ├── server.js           # Express + servidor HTTP + Socket.IO (Actividad 1)
-│   │   ├── db.js                # Pool de conexión a PostgreSQL
+│   │   ├── server.js
+│   │   ├── db.js
 │   │   ├── config/jwt.js
 │   │   ├── models/
-│   │   │   ├── userModel.js
-│   │   │   ├── messageModel.js  # saveMessage / getLastMessages (Actividad 2 y 3)
-│   │   │   └── productModel.js  # catálogo + created_by (Unidad 3)
-│   │   ├── controllers/authController.js
-│   │   ├── middleware/authMiddleware.js  # JWT para rutas REST
+│   │   ├── controllers/
+│   │   ├── middleware/authMiddleware.js
 │   │   ├── routes/
-│   │   │   ├── authRoutes.js    # /api/auth/login, /register, /me
-│   │   │   ├── messageRoutes.js # /api/messages/recent, /verify
-│   │   │   ├── productRoutes.js # GET/POST /api/products
-│   │   │   └── userRoutes.js    # GET /api/users/me/stats
-│   │   └── sockets/chatSocket.js # io.use() JWT handshake + new-message (Actividad 1 y 2)
+│   │   │   ├── authRoutes.js    # POST /signup, /register, /login · GET /me
+│   │   │   ├── messageRoutes.js # GET /recent, /verify
+│   │   │   ├── productRoutes.js # GET/POST/PUT/DELETE /products
+│   │   │   └── userRoutes.js    # GET /me, /me/stats
+│   │   └── sockets/chatSocket.js
 │   ├── migrations/
 │   │   ├── 001_create_users.sql
 │   │   ├── 002_create_messages.sql
-│   │   └── 003_create_products.sql
-│   └── scripts/
-│       ├── migrate.js
-│       └── seed.js              # usuarios de prueba + 14 productos de arturo
-├── frontend/                    # Web React (= /web-react del enunciado)
-│   ├── pnpm-workspace.yaml
-│   └── src/
-│       ├── api.js
-│       ├── socket.js
-│       ├── context/AuthContext.jsx
-│       └── pages/
-│           ├── Login.jsx
-│           ├── Catalog.jsx      # Unidad 3: creador + badge Usuario (N)
-│           └── Chat.jsx
-├── mobile/                      # Cliente Flutter (= /mobile-flutter del enunciado)
-│   ├── lib/
-│   └── README.md
-├── db/                          # Scripts SQL de entrega (copia de backend/migrations)
-├── postman/                     # Colección Postman del CRUD + auth
+│   │   ├── 003_create_products.sql
+│   │   └── 004_add_role_cliente.sql
+│   └── scripts/ migrate.js · seed.js
+├── frontend/                    # /web-react
+│   └── src/pages/ Login.jsx · Catalog.jsx · Chat.jsx
+├── mobile/                      # /mobile-flutter
+├── db/                          # /db (copia de backend/migrations)
+├── postman/
 ├── docker-compose.yml
-├── backup_postgres.sql          # (opcional) dump de la base local, ver sección 7
 └── README.md
 ```
 
@@ -94,13 +103,13 @@ propio, omite este paso y ajusta las variables de entorno del backend.
 
 ### 3.2 Backend
 
-```bash
+```powershell
 cd backend
-cp .env.example .env      # ajusta valores si es necesario
+Copy-Item .env.example .env   # ajusta DB_PORT=5433 si usas Docker de este repo
 pnpm install
-pnpm run migrate            # crea users, messages y products
-pnpm run seed                # usuarios de prueba + catálogo de arturo
-pnpm run dev                 # levanta el servidor en http://localhost:4000
+pnpm run migrate              # users, messages, products, rol cliente
+pnpm run seed                 # admin, cliente, arturo + catálogo
+pnpm run dev                  # http://localhost:4000
 ```
 
 Usuarios de prueba creados por el seed:
@@ -118,9 +127,9 @@ Usuarios de prueba creados por el seed:
 
 En otra terminal:
 
-```bash
+```powershell
 cd frontend
-cp .env.example .env
+Copy-Item .env.example .env
 pnpm install
 ```
 
@@ -165,7 +174,8 @@ flutter run -d windows
 ```
 
 La primera compilación tarda unos minutos. Se abre una ventana de escritorio.
-Login de prueba: `arturo` / `Arturo123!`.
+Login de prueba del enunciado: **`admin` / `Admin123!`** o **`cliente` / `Cliente123!`**.
+También sirve `arturo` / `Arturo123!` (catálogo seed con métrica N).
 
 Si `flutter devices` no lista Windows, o es la primera vez en esta carpeta y
 faltan las carpetas de plataforma:
@@ -268,10 +278,9 @@ docker exec -it ecohome_chat_db psql -U ecohome -d ecohome_chat -c "SELECT id, u
   funcionar incluso si el servidor se reinicia").
 - **Historial ordenado correctamente**: la consulta trae los últimos 10 por `created_at DESC`
   y luego los reordena `ASC` para pintarlos en orden cronológico natural en el chat.
-- **Roles de usuario** (`admin`, `ventas`, `logistica`, `soporte`) ya están en el modelo de
-  `users`, dejando la base lista para reglas de autorización más finas (por ejemplo,
-  canales separados por área) como evolución futura, tal como pide la gerencia en el
-  enunciado.
+- **Roles de usuario** (`admin`, `cliente`, `ventas`, `logistica`, `soporte`): el signup
+  público crea `cliente`; `admin` puede editar/borrar cualquier producto. La base
+  queda lista para reglas más finas (canales por área) como evolución futura.
 - **Escalabilidad futura**: separar `io.use()` (auth) de la lógica de negocio en
   `sockets/chatSocket.js` facilita añadir salas (`socket.join(room)`) para separar
   Ventas/Logística/Soporte sin reescribir el núcleo, y el modelo REST ya expone
@@ -374,10 +383,13 @@ El badge del header es `arturo (14)`. Crea un producto y pasa a `arturo (15)`.
 Para Flutter sigue la **sección 3.4** (desde `mobile/`, `flutter run -d windows`).
 Flujo de evidencia: `login → catálogo → chat → mensaje visible también en React`.
 
-### 8.2 Contratos REST usados por ambos clientes
+### 8.2 Contratos REST y eventos socket
+
+Rutas HTTP (prefijo `/api`; el mismo contrato para React y Flutter):
 
 | Método | Ruta | Auth | Uso |
 |---|---|---|---|
+| GET | `/api/health` | no | estado del servicio |
 | POST | `/api/auth/signup` | no | registro (rol `cliente`) + JWT |
 | POST | `/api/auth/register` | no | alias de signup |
 | POST | `/api/auth/login` | no | JWT unificado |
@@ -389,9 +401,23 @@ Flujo de evidencia: `login → catálogo → chat → mensaje visible también e
 | POST | `/api/products` | Bearer | crea; `created_by` sale del token |
 | PUT | `/api/products/:id` | Bearer | edita (autor o admin) |
 | DELETE | `/api/products/:id` | Bearer | borra (autor o admin) |
-| Socket.IO | `auth.token` | JWT handshake | conexión |
-| Socket.IO | `messages` / `message-history` | — | últimos 10 al conectar |
-| Socket.IO | `new-message` | — | envío y broadcast |
+| GET | `/api/messages/recent` | Bearer | últimos 10 (mismo historial del socket) |
+| GET | `/api/messages/verify` | Bearer | total persistido |
+
+Eventos Socket.IO (`http://localhost:4000`, handshake `auth: { token }`):
+
+| Dirección | Evento | Payload | Uso |
+|---|---|---|---|
+| handshake | `auth.token` | JWT | el servidor rechaza si el token no es válido |
+| servidor → cliente | `messages` | array (últimos 10) | historial al conectar (enunciado) |
+| servidor → cliente | `message-history` | array (últimos 10) | mismo historial (compatibilidad) |
+| cliente → servidor | `new-message` | `{ text }` | envío; se persiste y se hace broadcast |
+| servidor → todos | `new-message` | mensaje guardado | tiempo real |
+| servidor → cliente | `chat-error` | `{ message }` | error de historial o envío |
+| servidor → otros | `user-status` | `{ username, status }` | online / offline |
+| servidor → todos | `product-created` | `{ product, userId, productsCount }` | métrica `Usuario (N)` |
+| servidor → todos | `product-updated` | `{ product }` | catálogo en vivo |
+| servidor → todos | `product-deleted` | `{ id, userId, productsCount }` | catálogo y contador |
 
 Ejemplo Postman/cURL (Actividad 2):
 
@@ -435,18 +461,12 @@ por Socket.IO para actualizar la UI al instante (p. ej. `arturo (14)` → `artur
 
 ## 9. Proyecto de aplicación — paquete de entrega
 
-El enunciado pide `/backend`, `/web-react`, `/mobile-flutter` y `/db`. En este repo:
+El mapeo de carpetas, credenciales admin/cliente y el orden de instalación están
+en el bloque **Entrega 1.2** (inicio de este README).
 
-| Enunciado | Carpeta real |
-|---|---|
-| `/backend` | `backend/` |
-| `/web-react` | `frontend/` |
-| `/mobile-flutter` | `mobile/` |
-| `/db` | `db/` (copia de `backend/migrations/`) |
-
-`pnpm run migrate` lee **`backend/migrations/`**. Tras clonar, corre también
-`004_add_role_cliente.sql` (incluido en migrate) y `pnpm run seed` para crear
-`admin` / `cliente`.
+`pnpm run migrate` lee **`backend/migrations/`** (el directorio `db/` es la copia
+de entrega). Tras clonar: migrate (incluye `004_add_role_cliente.sql`) y
+`pnpm run seed` para crear `admin` / `cliente`.
 
 ### Variables de entorno (`backend/.env`)
 
