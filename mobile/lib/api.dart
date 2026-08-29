@@ -24,6 +24,19 @@ class EcoHomeApi {
     return headers;
   }
 
+  Future<Map<String, dynamic>> signup({
+    required String username,
+    required String email,
+    required String password,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConfig.apiUrl}/auth/signup'),
+      headers: _headers,
+      body: jsonEncode({'username': username, 'email': email, 'password': password}),
+    );
+    return _decode(response);
+  }
+
   Future<Map<String, dynamic>> login(String username, String password) async {
     final response = await http.post(
       Uri.parse('${AppConfig.apiUrl}/auth/login'),

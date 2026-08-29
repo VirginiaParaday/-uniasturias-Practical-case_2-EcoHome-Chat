@@ -2,15 +2,19 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login({ onSuccess }) {
-  const { login, error } = useAuth();
+  const { login, signup, error } = useAuth();
+  const [mode, setMode] = useState('login');
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
-    const ok = await login(username, password);
+    const ok = mode === 'login'
+      ? await login(username, password)
+      : await signup({ username, email, password });
     setLoading(false);
     if (ok) onSuccess?.();
   }
@@ -19,7 +23,16 @@ export default function Login({ onSuccess }) {
     <div className="auth-page">
       <div className="auth-card">
         <h1>EcoHome Store</h1>
-        <p className="subtitle">Catálogo y chat interno · JWT unificado</p>
+        <p className="subtitle">Catálogo y chat · JWT unificado (web y móvil)</p>
+
+        <div className="auth-tabs">
+          <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>
+            Ingresar
+          </button>
+          <button type="button" className={mode === 'signup' ? 'active' : ''} onClick={() => setMode('signup')}>
+            Registrarse
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
           <label>
@@ -28,11 +41,24 @@ export default function Login({ onSuccess }) {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="ventas1"
+              placeholder={mode === 'login' ? 'arturo' : 'tu_usuario'}
               required
               autoFocus
             />
           </label>
+
+          {mode === 'signup' && (
+            <label>
+              Email
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tu@correo.com"
+                required
+              />
+            </label>
+          )}
 
           <label>
             Contraseña
@@ -48,18 +74,16 @@ export default function Login({ onSuccess }) {
           {error && <p className="error-text">{error}</p>}
 
           <button type="submit" disabled={loading}>
-            {loading ? 'Ingresando...' : 'Ingresar'}
+            {loading ? 'Procesando...' : mode === 'login' ? 'Ingresar' : 'Crear cuenta'}
           </button>
         </form>
 
         <div className="hint-box">
-          <strong>Usuarios de prueba (tras ejecutar el seed):</strong>
+          <strong>Usuarios de prueba (tras el seed):</strong>
           <ul>
-            <li>arturo / Arturo123! <em>(14 productos de demo)</em></li>
-            <li>ventas1 / Ventas123!</li>
-            <li>logistica1 / Logistica123!</li>
-            <li>soporte1 / Soporte123!</li>
             <li>admin / Admin123!</li>
+            <li>cliente / Cliente123!</li>
+            <li>arturo / Arturo123! <em>(catálogo de demo)</em></li>
           </ul>
         </div>
       </div>

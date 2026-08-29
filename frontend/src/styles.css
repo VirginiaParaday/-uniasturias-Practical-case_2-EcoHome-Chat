@@ -39,6 +39,28 @@ body {
   font-size: 14px;
 }
 
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.auth-tabs button {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #cdd6c9;
+  background: #f4f7f2;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.auth-tabs button.active {
+  background: #2f6b3a;
+  color: #fff;
+  border-color: #2f6b3a;
+}
+
 .auth-form {
   display: flex;
   flex-direction: column;
@@ -373,7 +395,6 @@ body {
 }
 
 .catalog-form button {
-  grid-column: 1 / -1;
   padding: 11px;
   border: none;
   border-radius: 8px;
@@ -385,6 +406,46 @@ body {
 
 .catalog-form button:disabled {
   opacity: 0.6;
+}
+
+.form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+}
+
+.form-actions button {
+  flex: 1;
+}
+
+.btn-secondary {
+  background: #6a7a6a !important;
+}
+
+.btn-danger {
+  background: #c0392b !important;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.product-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.product-actions button {
+  background: #2f6b3a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
 }
 
 .product-grid {

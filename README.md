@@ -38,7 +38,7 @@ ecohome-chat/
 │   └── scripts/
 │       ├── migrate.js
 │       └── seed.js              # usuarios de prueba + 14 productos de arturo
-├── frontend/
+├── frontend/                    # Web React (= /web-react del enunciado)
 │   ├── pnpm-workspace.yaml
 │   └── src/
 │       ├── api.js
@@ -48,9 +48,11 @@ ecohome-chat/
 │           ├── Login.jsx
 │           ├── Catalog.jsx      # Unidad 3: creador + badge Usuario (N)
 │           └── Chat.jsx
-├── mobile/                      # Cliente Flutter (Unidad 3 / Actividad 1)
+├── mobile/                      # Cliente Flutter (= /mobile-flutter del enunciado)
 │   ├── lib/
 │   └── README.md
+├── db/                          # Scripts SQL de entrega (copia de backend/migrations)
+├── postman/                     # Colección Postman del CRUD + auth
 ├── docker-compose.yml
 ├── backup_postgres.sql          # (opcional) dump de la base local, ver sección 7
 └── README.md
@@ -105,8 +107,9 @@ Usuarios de prueba creados por el seed:
 
 | usuario      | password        | rol        |
 |--------------|------------------|------------|
-| arturo       | Arturo123!       | ventas     |
 | admin        | Admin123!        | admin      |
+| cliente      | Cliente123!      | cliente    |
+| arturo       | Arturo123!       | ventas     |
 | ventas1      | Ventas123!       | ventas     |
 | logistica1   | Logistica123!    | logistica  |
 | soporte1     | Soporte123!      | soporte    |
@@ -375,12 +378,20 @@ Flujo de evidencia: `login → catálogo → chat → mensaje visible también e
 
 | Método | Ruta | Auth | Uso |
 |---|---|---|---|
+| POST | `/api/auth/signup` | no | registro (rol `cliente`) + JWT |
+| POST | `/api/auth/register` | no | alias de signup |
 | POST | `/api/auth/login` | no | JWT unificado |
 | GET | `/api/auth/me` | Bearer | perfil + `productsCount` |
-| GET | `/api/users/me/stats` | Bearer | `{ username, productsCount }` |
+| GET | `/api/users/me` | Bearer | `{ username, productsCount }` |
+| GET | `/api/users/me/stats` | Bearer | igual que `/users/me` |
 | GET | `/api/products` | Bearer | catálogo con `creator.username` |
+| GET | `/api/products/:id` | Bearer | un producto |
 | POST | `/api/products` | Bearer | crea; `created_by` sale del token |
-| Socket.IO | `auth.token` + `new-message` | JWT handshake | mismo chat |
+| PUT | `/api/products/:id` | Bearer | edita (autor o admin) |
+| DELETE | `/api/products/:id` | Bearer | borra (autor o admin) |
+| Socket.IO | `auth.token` | JWT handshake | conexión |
+| Socket.IO | `messages` / `message-history` | — | últimos 10 al conectar |
+| Socket.IO | `new-message` | — | envío y broadcast |
 
 Ejemplo Postman/cURL (Actividad 2):
 
@@ -419,3 +430,61 @@ devuelven `creator.username`. Un cliente no puede atribuir un producto a otro us
 `username (N)` con `productsCount` de `/api/auth/me` o `/api/users/me/stats`.
 Tras un alta, la respuesta incluye el nuevo contador y se emite `product-created`
 por Socket.IO para actualizar la UI al instante (p. ej. `arturo (14)` → `arturo (15)`).
+
+---
+
+## 9. Proyecto de aplicación — paquete de entrega
+
+El enunciado pide `/backend`, `/web-react`, `/mobile-flutter` y `/db`. En este repo:
+
+| Enunciado | Carpeta real |
+|---|---|
+| `/backend` | `backend/` |
+| `/web-react` | `frontend/` |
+| `/mobile-flutter` | `mobile/` |
+| `/db` | `db/` (copia de `backend/migrations/`) |
+
+`pnpm run migrate` lee **`backend/migrations/`**. Tras clonar, corre también
+`004_add_role_cliente.sql` (incluido en migrate) y `pnpm run seed` para crear
+`admin` / `cliente`.
+
+### Variables de entorno (`backend/.env`)
+
+| Variable | Ejemplo | Uso |
+|---|---|---|
+| `PORT` | `4000` | HTTP + Socket.IO |
+| `DB_HOST` | `localhost` | PostgreSQL |
+| `DB_PORT` | `5433` | puerto del host (Docker) |
+| `DB_NAME` | `ecohome_chat` | base |
+| `DB_USER` | `ecohome` | usuario |
+| `DB_PASSWORD` | `ecohome123` | clave |
+| `JWT_SECRET` | (cambiar en prod) | firma del token |
+| `JWT_EXPIRES_IN` | `8h` | vigencia |
+| `CORS_ORIGIN` | `http://localhost:5173` | origen React |
+
+Frontend (`frontend/.env`): `VITE_API_URL=http://localhost:4000/api`,
+`VITE_SOCKET_URL=http://localhost:4000`.
+
+### Cómo correr (resumen)
+
+1. `docker compose up -d`
+2. `backend`: `pnpm install` → `pnpm run migrate` → `pnpm run seed` → `pnpm run dev`
+3. `frontend`: `pnpm install` → `pnpm run dev` → http://localhost:5173
+4. `mobile`: `flutter pub get` → `flutter run -d windows`
+
+### Postman
+
+Importa `postman/EcoHome-Store.postman_collection.json`.
+Login → copia `token` a la variable de colección → CRUD de productos.
+
+### Build móvil (evidencia)
+
+```powershell
+cd mobile
+flutter build windows
+# si hay Android SDK:
+flutter build apk
+```
+
+El APK queda en `mobile/build/app/outputs/flutter-apk/`. Sin SDK de Android,
+`flutter build windows` y `flutter doctor` sirven como evidencia de build.

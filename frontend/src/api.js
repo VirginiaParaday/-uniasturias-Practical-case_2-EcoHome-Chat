@@ -18,6 +18,11 @@ export async function loginRequest(username, password) {
   return data; // { token, user }
 }
 
+export async function signupRequest({ username, email, password }) {
+  const { data } = await api.post('/auth/signup', { username, email, password });
+  return data; // { token, user }
+}
+
 export async function getMe() {
   const { data } = await api.get('/auth/me');
   return data;
@@ -36,6 +41,16 @@ export async function getProducts() {
 export async function createProduct({ name, description, price }) {
   const { data } = await api.post('/products', { name, description, price });
   return data; // { product, productsCount }
+}
+
+export async function updateProduct(id, { name, description, price }) {
+  const { data } = await api.put(`/products/${id}`, { name, description, price });
+  return data; // { product }
+}
+
+export async function deleteProduct(id) {
+  const { data } = await api.delete(`/products/${id}`);
+  return data; // { ok, id, productsCount }
 }
 
 export async function getRecentMessages() {

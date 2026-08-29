@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { createProduct, getProducts } from '../api';
+import { createProduct, deleteProduct, getProducts, updateProduct } from '../api';
 import { connectSocket } from '../socket';
 
 function formatPrice(value) {
@@ -11,13 +11,19 @@ function formatPrice(value) {
   }).format(value);
 }
 
+const emptyForm = { name: '', description: '', price: '' };
+
 export default function Catalog() {
-  const { token, setProductsCount } = useAuth();
+  const { token, user, setProductsCount } = useAuth();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', price: '' });
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState(null);
+
+  const canManage = (product) =>
+    user?.role === 'admin' || product.createdBy === user?.id || product.creator?.id === user?.id;
 
   async function loadProducts() {
     setError('');
@@ -35,57 +41,103 @@ export default function Catalog() {
     loadProducts();
 
     const socket = connectSocket(token);
-    function onProductCreated(payload) {
+    function onCreated(payload) {
       const product = payload?.product;
       if (!product?.id) return;
       setProducts((current) => (current.some((item) => item.id === product.id) ? current : [product, ...current]));
     }
-    socket.on('product-created', onProductCreated);
-    return () => socket.off('product-created', onProductCreated);
-  }, [token]);
+    function onUpdated(payload) {
+      const product = payload?.product;
+      if (!product?.id) return;
+      setProducts((current) => current.map((item) => (item.id === product.id ? product : item)));
+    }
+    function onDeleted(payload) {
+      if (!payload?.id) return;
+      setProducts((current) => current.filter((item) => item.id !== payload.id));
+      if (payload.userId === user?.id && typeof payload.productsCount === 'number') {
+        setProductsCount(payload.productsCount);
+      }
+    }
+    socket.on('product-created', onCreated);
+    socket.on('product-updated', onUpdated);
+    socket.on('product-deleted', onDeleted);
+    return () => {
+      socket.off('product-created', onCreated);
+      socket.off('product-updated', onUpdated);
+      socket.off('product-deleted', onDeleted);
+    };
+  }, [token, user?.id, setProductsCount]);
 
   function handleChange(event) {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
   }
 
+  function startEdit(product) {
+    setEditingId(product.id);
+    setForm({
+      name: product.name,
+      description: product.description || '',
+      price: String(product.price),
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(emptyForm);
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setSaving(true);
     setError('');
+    const payload = {
+      name: form.name,
+      description: form.description,
+      price: Number(form.price),
+    };
     try {
-      const { product, productsCount } = await createProduct({
-        name: form.name,
-        description: form.description,
-        price: Number(form.price),
-      });
-      setProducts((current) => [product, ...current]);
-      setProductsCount(productsCount);
-      setForm({ name: '', description: '', price: '' });
+      if (editingId) {
+        const { product } = await updateProduct(editingId, payload);
+        setProducts((current) => current.map((item) => (item.id === product.id ? product : item)));
+        cancelEdit();
+      } else {
+        const { product, productsCount } = await createProduct(payload);
+        setProducts((current) => [product, ...current]);
+        setProductsCount(productsCount);
+        setForm(emptyForm);
+      }
     } catch (err) {
-      setError(err?.response?.data?.message || 'No se pudo crear el producto');
+      setError(err?.response?.data?.message || 'No se pudo guardar el producto');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete(product) {
+    if (!window.confirm(`¿Eliminar "${product.name}"?`)) return;
+    try {
+      const data = await deleteProduct(product.id);
+      setProducts((current) => current.filter((item) => item.id !== product.id));
+      if (product.createdBy === user?.id || product.creator?.id === user?.id) {
+        setProductsCount(data.productsCount);
+      }
+    } catch (err) {
+      setError(err?.response?.data?.message || 'No se pudo eliminar');
     }
   }
 
   return (
     <div className="catalog-page">
       <section className="catalog-form-card">
-        <h3>Registrar producto</h3>
+        <h3>{editingId ? 'Editar producto' : 'Registrar producto'}</h3>
         <p className="catalog-hint">
-          El creador se toma del JWT en el servidor. No se envía <code>created_by</code> desde el cliente.
+          El creador se toma del JWT. Editar/borrar: solo el autor o un admin.
         </p>
         <form onSubmit={handleSubmit} className="catalog-form">
           <label>
             Nombre
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              placeholder="Lámpara solar"
-              required
-            />
+            <input name="name" value={form.name} onChange={handleChange} placeholder="Lámpara solar" required />
           </label>
           <label>
             Precio (COP)
@@ -102,16 +154,18 @@ export default function Catalog() {
           </label>
           <label className="span-2">
             Descripción
-            <input
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-              placeholder="Opcional"
-            />
+            <input name="description" value={form.description} onChange={handleChange} placeholder="Opcional" />
           </label>
-          <button type="submit" disabled={saving}>
-            {saving ? 'Guardando...' : 'Crear producto'}
-          </button>
+          <div className="form-actions">
+            <button type="submit" disabled={saving}>
+              {saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear producto'}
+            </button>
+            {editingId && (
+              <button type="button" className="btn-secondary" onClick={cancelEdit}>
+                Cancelar
+              </button>
+            )}
+          </div>
         </form>
       </section>
 
@@ -131,6 +185,14 @@ export default function Catalog() {
               <span className="product-creator">
                 Creado por: {product.creator?.username || 'desconocido'}
               </span>
+              {canManage(product) && (
+                <div className="product-actions">
+                  <button type="button" onClick={() => startEdit(product)}>Editar</button>
+                  <button type="button" className="btn-danger" onClick={() => handleDelete(product)}>
+                    Eliminar
+                  </button>
+                </div>
+              )}
             </article>
           ))}
         </div>

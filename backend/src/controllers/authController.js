@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const jwtConfig = require('../config/jwt');
-const { findByUsername, createUser } = require('../models/userModel');
+const { findByUsername, findByEmail, createUser } = require('../models/userModel');
 const { countProductsByUser } = require('../models/productModel');
 
 function signToken(user) {
@@ -12,26 +12,46 @@ function signToken(user) {
   );
 }
 
-// POST /api/auth/register
-// Se incluye para poder crear usuarios de prueba sin tocar la base de datos a mano.
-// (La fase anterior ya asume una base de usuarios existente; esto es un extra util.)
+// POST /api/auth/signup  (alias: /api/auth/register)
+// El signup público siempre crea rol "cliente". Devuelve JWT, igual que el login.
 async function register(req, res) {
   try {
-    const { username, email, password, role } = req.body;
+    const { username, email, password } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ message: 'username, email y password son obligatorios' });
     }
 
-    const existing = await findByUsername(username);
-    if (existing) {
+    if (String(password).length < 6) {
+      return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres' });
+    }
+
+    if (await findByUsername(username)) {
       return res.status(409).json({ message: 'El usuario ya existe' });
+    }
+    if (await findByEmail(email)) {
+      return res.status(409).json({ message: 'El email ya está registrado' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await createUser({ username, email, passwordHash, role });
+    const user = await createUser({
+      username: String(username).trim(),
+      email: String(email).trim().toLowerCase(),
+      passwordHash,
+      role: 'cliente',
+    });
 
-    return res.status(201).json({ user });
+    const token = signToken(user);
+    return res.status(201).json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        productsCount: 0,
+      },
+    });
   } catch (err) {
     console.error('[authController.register]', err);
     return res.status(500).json({ message: 'Error interno al registrar usuario' });

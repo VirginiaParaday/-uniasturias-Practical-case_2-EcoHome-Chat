@@ -4,6 +4,7 @@ const { myStats } = require('../controllers/userController');
 
 const router = Router();
 
+router.get('/me', requireAuth, myStats);
 router.get('/me/stats', requireAuth, myStats);
 
 module.exports = router;

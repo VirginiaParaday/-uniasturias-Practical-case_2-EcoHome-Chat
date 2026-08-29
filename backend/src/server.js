@@ -55,8 +55,9 @@ httpServer.listen(PORT, () => {
   console.log(`\n EcoHome Store - Backend (chat + catálogo)`);
   console.log(` Servidor HTTP + Socket.IO escuchando en http://localhost:${PORT}`);
   console.log(` Health check:            http://localhost:${PORT}/api/health`);
+  console.log(` Signup:                  POST http://localhost:${PORT}/api/auth/signup`);
   console.log(` Login:                   POST http://localhost:${PORT}/api/auth/login`);
-  console.log(` Catálogo:                GET/POST http://localhost:${PORT}/api/products`);
+  console.log(` Catálogo CRUD:           GET/POST/PUT/DELETE http://localhost:${PORT}/api/products`);
   console.log(` Stats:                   GET  http://localhost:${PORT}/api/users/me/stats`);
   console.log(` Mensajes recientes:      GET  http://localhost:${PORT}/api/messages/recent\n`);
 });

@@ -26,19 +26,40 @@ class AuthState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _applyAuthData(Map<String, dynamic> data) async {
+    final profile = data['user'] as Map<String, dynamic>;
+    token = data['token'] as String;
+    username = profile['username'] as String?;
+    role = profile['role'] as String?;
+    userId = profile['id'] as int?;
+    productsCount = (profile['productsCount'] as num?)?.toInt() ?? 0;
+    await _persist();
+  }
+
   Future<bool> login(String user, String password) async {
     loading = true;
     error = null;
     notifyListeners();
     try {
       final data = await EcoHomeApi(null).login(user, password);
-      final profile = data['user'] as Map<String, dynamic>;
-      token = data['token'] as String;
-      username = profile['username'] as String?;
-      role = profile['role'] as String?;
-      userId = profile['id'] as int?;
-      productsCount = (profile['productsCount'] as num?)?.toInt() ?? 0;
-      await _persist();
+      await _applyAuthData(data);
+      return true;
+    } catch (err) {
+      error = err.toString();
+      return false;
+    } finally {
+      loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> signup({required String user, required String email, required String password}) async {
+    loading = true;
+    error = null;
+    notifyListeners();
+    try {
+      final data = await EcoHomeApi(null).signup(username: user, email: email, password: password);
+      await _applyAuthData(data);
       return true;
     } catch (err) {
       error = err.toString();

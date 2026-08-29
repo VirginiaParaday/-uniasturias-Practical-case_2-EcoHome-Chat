@@ -61,6 +61,7 @@ function registerChatSocket(io) {
       const history = await getLastMessages(10);
       await logChatMessageCount(username);
       socket.emit('message-history', history);
+      socket.emit('messages', history);
     } catch (err) {
       console.error('[Socket.IO] Error cargando historial:', err);
       socket.emit('chat-error', { message: 'No se pudo cargar el historial de mensajes' });

@@ -10,6 +10,7 @@ const DEMO_USERS = [
   { username: 'logistica1', email: 'logistica1@ecohome.test', password: 'Logistica123!', role: 'logistica' },
   { username: 'soporte1', email: 'soporte1@ecohome.test', password: 'Soporte123!', role: 'soporte' },
   { username: 'arturo', email: 'arturo@ecohome.test', password: 'Arturo123!', role: 'ventas' },
+  { username: 'cliente', email: 'cliente@ecohome.test', password: 'Cliente123!', role: 'cliente' },
 ];
 
 const ARTURO_PRODUCTS = [

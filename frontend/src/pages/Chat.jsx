@@ -35,10 +35,12 @@ export default function Chat() {
     });
 
     // Actividad 3 / Entregable 3: historial inicial (ultimos 10 mensajes).
-    socket.on('message-history', (history) => {
-      console.log('[Chat] Sesión iniciada. Cantidad de mensajes del chat:', history.length);
+    function applyHistory(history) {
+      console.log('[Chat] Historial recibido:', history.length);
       setMessages(history);
-    });
+    }
+    socket.on('message-history', applyHistory);
+    socket.on('messages', applyHistory);
 
     // Actividad 1 / Entregable 2: recepcion de mensajes en tiempo real (broadcast).
     socket.on('new-message', (message) => {
@@ -58,7 +60,8 @@ export default function Chat() {
       socket.off('connect');
       socket.off('disconnect');
       socket.off('connect_error');
-      socket.off('message-history');
+      socket.off('message-history', applyHistory);
+      socket.off('messages', applyHistory);
       socket.off('new-message');
       socket.off('user-status');
       socket.off('chat-error');

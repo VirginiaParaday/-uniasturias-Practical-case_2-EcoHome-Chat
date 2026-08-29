@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react';
-import { loginRequest } from '../api';
+import { loginRequest, signupRequest } from '../api';
 import { disconnectSocket } from '../socket';
 
 const AuthContext = createContext(null);
@@ -17,20 +17,37 @@ export function AuthProvider({ children }) {
     setUser(nextUser);
   }, []);
 
+  const applySession = useCallback((data) => {
+    localStorage.setItem('ecohome_token', data.token);
+    persistUser(data.user);
+    setToken(data.token);
+  }, [persistUser]);
+
   const login = useCallback(async (username, password) => {
     setError('');
     try {
       const data = await loginRequest(username, password);
-      localStorage.setItem('ecohome_token', data.token);
-      persistUser(data.user);
-      setToken(data.token);
+      applySession(data);
       return true;
     } catch (err) {
       const message = err?.response?.data?.message || 'No se pudo iniciar sesion';
       setError(message);
       return false;
     }
-  }, [persistUser]);
+  }, [applySession]);
+
+  const signup = useCallback(async ({ username, email, password }) => {
+    setError('');
+    try {
+      const data = await signupRequest({ username, email, password });
+      applySession(data);
+      return true;
+    } catch (err) {
+      const message = err?.response?.data?.message || 'No se pudo registrar';
+      setError(message);
+      return false;
+    }
+  }, [applySession]);
 
   const setProductsCount = useCallback((productsCount) => {
     setUser((current) => {
@@ -50,7 +67,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ token, user, error, login, logout, setProductsCount }}>
+    <AuthContext.Provider value={{ token, user, error, login, signup, logout, setProductsCount }}>
       {children}
     </AuthContext.Provider>
   );

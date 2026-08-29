@@ -48,7 +48,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return;
       setState(() => _status = 'error: $err');
     });
-    socket.on('message-history', (history) {
+    void applyHistory(dynamic history) {
       if (!mounted) return;
       final list = (history as List<dynamic>)
           .map((item) => Map<String, dynamic>.from(item as Map))
@@ -59,7 +59,10 @@ class _ChatScreenState extends State<ChatScreen> {
           ..addAll(list);
       });
       _jumpToEnd();
-    });
+    }
+
+    socket.on('message-history', applyHistory);
+    socket.on('messages', applyHistory);
     socket.on('new-message', (raw) {
       if (!mounted) return;
       final message = Map<String, dynamic>.from(raw as Map);
